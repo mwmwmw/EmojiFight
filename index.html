@@ -147,7 +147,7 @@ var scene, camera, renderer, clock, deltaTime, totalTime, raycastCamera;
 var intersectables =[];
 var arToolkitSource, arToolkitContext;
 
-var markerRoot1;
+var markerRoot1 = new THREE.Group();
 
 var mesh1;
 
@@ -160,34 +160,50 @@ var boxes = [];
 var mouse = new THREE.Vector2(-10000,-10000);
 var touch = false;
 
+
+
+// TITLE STUFF //
+
 let firebutton = document.getElementById("FireButton");
 let setupPage = document.getElementById("setupscreen");
 let titlescreen = document.getElementById("titlescreen");
 
-setupPage.addEventListener("touchstart", ()=>{
+function setupPageInit () {
 	initialize();
 	setupPage.classList.remove('show');
 	setupPage.classList.add("hide");
 	titlescreen.classList.remove("hide");
 	titlescreen.classList.add("show");
-})
+}
 
+setupPage.addEventListener("touchstart", setupPageInit);
+setupPage.addEventListener("click", setupPageInit);
 
-titlescreen.addEventListener("touchstart", ()=>{
+function titlePageInit() {
 	titlescreen.classList.remove('show');
 	titlescreen.classList.add("hide");
 	animate();
-})
+}
+
+titlescreen.addEventListener("touchstart", titlePageInit);
+titlescreen.addEventListener("click", titlePageInit);
 
 window.addEventListener("touchstart", (e)=>{
-	// mouse.x = e.touches[0].clientX / window.innerWidth;
-	// mouse.y = e.touches[0].clientY / window.innerHeight;
+	e.preventDefault();
 	touch = true;
 })
 window.addEventListener("touchend", (e)=>{
+	e.preventDefault();
 	touch = false;
-	// mouse.x = -10000;
-	// mouse.y = -10000;
+})
+
+window.addEventListener("mousedown", (e)=>{
+	e.preventDefault();
+	touch = true;
+})
+window.addEventListener("mouseup", (e)=>{
+	e.preventDefault();
+	touch = false;
 })
 
 let emojiTextureExtension = "png";
@@ -208,33 +224,58 @@ let emojiMeshes = [];
 let currentLevel = 0;
 let currentEnemy = null;
 let levels = [
-		{
-			ENEMY: 3, // Lion
-			WEAPN: 0,
-			HEALTH: 10,
-			RATE: 0.5
-		},{
-			ENEMY: 4, // Lock
-			WEAPN: 2,
-			HEALTH: 15
-		},{
-			ENEMY: 1, // Fire
-			WEAPN: 9,
-		},{
-			ENEMY: 7, // Toilet
-			WEAPN: 5,
-		},{
-			ENEMY: 8, // Toilet
-			WEAPN: 6,
-		},
-	]
+	{
+		ENEMY: 3, // Lion
+		WEAPN: 0,
+		HEALTH: 30,
+		SWEET_SPOT: 20,
+		SWEET_SPOT_SIZE: 5,
+	},{
+		ENEMY: 4, // Lock
+		WEAPN: 2,
+		HEALTH: 10,
+		SWEET_SPOT: 20,
+		SWEET_SPOT_SIZE: 5,
+	},{
+		ENEMY: 1, // Fire
+		WEAPN: 9,
+		HEALTH: 10,
+		SWEET_SPOT: 20,
+		SWEET_SPOT_SIZE: 5,
+	},{
+		ENEMY: 7, // Toilet
+		WEAPN: 5,
+		HEALTH: 10,
+		SWEET_SPOT: 20,
+		SWEET_SPOT_SIZE: 5,
+	},{
+		ENEMY: 8, // Trophy
+		WEAPN: 6,
+		HEALTH: 10,
+		SWEET_SPOT: 20,
+		SWEET_SPOT_SIZE: 5,
+	},
+];
+
+function generateGeometry(progress = 1, size = 0.5, startAngle = -90, resolution = 64) {
+  const rads = THREE.Math.degToRad(startAngle);
+  const circleSize = THREE.Math.degToRad(360);
+  return new THREE.RingBufferGeometry( size, size-(size*0.25), resolution, 1, rads, (circleSize * progress) );
+}
+
+var progressRing = generateGeometry(0.5);
+var material = new THREE.MeshBasicMaterial( { color: 0xffff00, side: THREE.DoubleSide } );
+var circle = new THREE.Mesh( progressRing, material );
+	circle.rotateX(THREE.Math.degToRad(90));
 
 function initialize()
 {
 	scene = new THREE.Scene();
 
-	let ambientLight = new THREE.AmbientLight( 0xcccccc, 1.0 );
-	scene.add( ambientLight );
+	let light = new THREE.HemisphereLight( 0xFFFFFF, 0x101010, 4. );
+
+	light.position.y = 1;
+	scene.add( light );
 				
 	camera = new THREE.Camera();
 	scene.add(camera);
@@ -259,7 +300,9 @@ function initialize()
 	////////////////////////////////////////////////////////////
 
 	arToolkitSource = new THREEx.ArToolkitSource({
-		sourceType : 'webcam',
+		//sourceType : 'webcam',
+		sourceType : 'video',
+		sourceUrl : "./images/testvid.mp4",
 	});
 
 	function onResize()
@@ -296,6 +339,21 @@ function initialize()
 		camera.projectionMatrix.copy( arToolkitContext.getProjectionMatrix() );
 	});
 
+	
+	let meshloader = new THREE.GLTFLoader().load('./models/lion.glb', (gltf)=>{
+
+		gltf.scene.traverse((c)=>{
+			if(c.material) {
+			let material = new THREE.MeshPhongMaterial({color: c.material.color, side: THREE.DoubleSide});
+			c.material = material;
+			}
+		})
+		
+
+		markerRoot1.add(gltf.scene);
+
+	})
+
 	////////////////////////////////////////////////////////////
 	// setup markerRoots
 	////////////////////////////////////////////////////////////
@@ -308,12 +366,8 @@ function initialize()
 	})
 
 	loadEmojis();
-
 	setLevel(0);
-
-	setInterval(()=>{
-		setLevel(currentLevel + 1);
-	},5000)
+	markerRoot1.add( circle );
 
 }
 
@@ -344,11 +398,15 @@ function loadEmojis () {
 }
 
 function setLevel(level) {
-	if(levels[currentLevel]) {
+
+	if(levels[level]) {
 		currentLevel = level;
 		setButton(currentLevel);
 		setCurrentEnemy(currentLevel);
+	} else {
+		setLevel(0);
 	}
+
 }
 
 function setButton (level) {
@@ -362,13 +420,28 @@ function setCurrentEnemy(level) {
 	markerRoot1.remove(currentEnemy);
 
 	currentEnemy = emojiMeshes[enemy].clone();
-		currentEnemy.geometry.translate(0,0.5,0);
+		currentEnemy.geometry = currentEnemy.geometry.clone().translate(0,0.5,0);
 	
 	markerRoot1.add(currentEnemy);
 }
 
+var hits = 0;
+var hitTarget = 0;
+var gameTarget = 0;
+
 function update()
 {
+	hitTarget += ((hits/levels[currentLevel].HEALTH) - hitTarget) * 0.2;
+	if(hits < levels[currentLevel].HEALTH) {
+		circle.geometry = generateGeometry(hitTarget);
+	} else {
+		hits = 0;
+		hitTarget = 0;
+		setLevel(currentLevel + 1);
+		circle.geometry = generateGeometry(hitTarget);
+	}
+	
+
 	bullets.map(b=>b.update());
 	// update artoolkit on every frame
 	if ( arToolkitSource.ready !== false )
@@ -392,9 +465,11 @@ class Bullet {
 	}
 
 	update() {
+		if(!this.dead) {
 		if (this.life < 0 || this.mesh.position.z < 0) {
 			this.dead = true;
 			this.scene.remove(this.mesh);
+			hits++;
 		} else {
 			this.velocity.add(GRAVITY);
 
@@ -410,7 +485,12 @@ class Bullet {
 			this.life--;
 		}
 	}
+	}
 }
+
+
+
+
 
 var lastShot = 0;
 var shotRate = 0.2;
@@ -430,6 +510,8 @@ function shoot (parent, scene) {
 		);
 	}
 }
+
+
 
 
 function render()
