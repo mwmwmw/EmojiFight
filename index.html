@@ -18,6 +18,41 @@
 
 	<style>
 
+.loading {
+	border:0.1em dashed white;
+	width: 70px;
+	height: 70px;
+	border-radius: 100px;
+	animation: load 5s linear infinite;
+}
+
+@keyframes load {
+	0% {
+		transform: rotateZ(0deg);
+	}
+	100% {
+		transform:  rotateZ(360deg);
+	}
+}
+
+@keyframes swizzle {
+	0% {
+		transform: scale(0.8) rotateZ(-3deg);
+	}
+	25% {
+		transform: scale(1.5) rotateZ(5deg);
+	}
+	50% {
+		transform: scale(0.8) rotateZ(3deg);
+	}
+	75% {
+		transform: scale(1.5) rotateZ(-5deg);
+	}
+	100% {
+		transform: scale(0.8) rotateZ(-3deg);
+	}
+}
+
 	.fullscreen {
 		position: absolute;
 		top: 0;
@@ -60,6 +95,7 @@
 	#titlescreen img {
 		height: 50vh;
 		width: 50vh;
+		animation: swizzle 3s ease-in-out infinite;
 	}
 
 	#setupscreen {
@@ -126,23 +162,32 @@
 
 <body style='margin : 0px; overflow: hidden; font-family: Monospace;' class="noselect">
 
-<div id="setupscreen" class="show rectangle fullscreen centerItems">
-	<img src="images/EmojiFightLogo.png" />
-	<p class="setupInstructions">To experience in AR, <br/>
-			Emoji Fight needs your camera</p>
-	<div class="setupQuestion">Can We Use It?</div>
-</div>
-
-<div id="titlescreen" class="hide rectangle fullscreen titlefont centerItems">
+<div id="StartScreenUI">
+	<div id="setupscreen" class="show rectangle fullscreen centerItems">
 		<img src="images/EmojiFightLogo.png" />
-		<div>START</div>
+		<p class="setupInstructions">To experience in AR, <br/>
+				Emoji Fight needs your camera</p>
+		<div class="setupQuestion">Can We Use It?</div>
 	</div>
 
-	<div id="UI" class="fullscreen centerItems">
-<a class="button"><img id="FireButton" src="textures/fire.png" /></a>
+	<div id="titlescreen" class="hide rectangle fullscreen titlefont centerItems">
+			<img src="images/EmojiFightLogo.png" />
+			<div id="loading" class="loading"></div>
+			<div id="start" class="hide">START</div>
+		</div>
+
+
 </div>
+
+<div id="UI" class="fullscreen centerItems">
+	<a class="button"><img id="firebutton" src="textures/fire.png" /></a>
+	</div>
+
+<script src="js/game.js"></script>
+
 <script>
 
+/*
 var scene, camera, renderer, clock, deltaTime, totalTime, raycastCamera;
 var intersectables =[];
 var arToolkitSource, arToolkitContext;
@@ -540,6 +585,8 @@ function animate()
 	update();
 	render();
 }
+
+*/
 
 </script>
 
