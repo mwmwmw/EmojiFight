@@ -57,6 +57,8 @@ class Level {
 
         window.addEventListener(EVENTS.ENEMY_DEAD, this.end);
 
+        this.start();
+
     }
     start () { 
         kickout(EVENTS.START_LEVEL, this)
@@ -65,9 +67,9 @@ class Level {
 
         this.progressBar.update();
     
-        if(this.progressBar.inZone) {
+        // if(this.progressBar.inZone) {
             
-        }
+        // }
 
         if(this.state === "won") {
             this.text.position.y+=0.06;
@@ -99,9 +101,41 @@ class FireLevel extends Level {}
 class ToiletLevel extends Level {}
 class TrophyLevel extends Level {}
 class Win extends Level {
+    constructor () {
+        super(...arguments)
+        this.trophies = [];
 
+        for(let i = 0; i < 100; i++) {
+            let mesh = this.weaponMesh.clone();
+            mesh.scale.set(0.2, 0.2, 0.2);
+            mesh.position.set((0.5-Math.random())*5, Math.random()*5, (0.5-Math.random())*5);
+            mesh.rng = 0.01 + Math.random()*0.07;
+            this.trophies.push(mesh);
+            this.root.add(mesh);
+        }
+
+    }
+    start () { 
+        kickout(EVENTS.START_LEVEL, this);
+        //this.progressBar.mesh.visible = false;
+    }
     update () {
-        this.enemyMesh.rotateY(0.01);
+
+        this.trophies.map((t)=>{
+
+            t.position.y -= 0.01;
+            if(t.position.y < 0) {
+                t.position.y = 5;
+            }
+            t.rotateZ(t.rng);
+            t.rotateX(t.rng);
+            t.rotateY(t.rng);
+
+        })
+
+        this.progressBar.update();
+        let rotate = (this.progressBar.hits/this.progressBar.totalHits)*0.2;
+        this.enemyMesh.rotateY(rotate);
     }
 
 }
@@ -118,7 +152,7 @@ const LEVELS = [
 		WEAPON: assetList[0],
         HEALTH: 300,
         SHOT_SIZE: 20,
-        REGEN_RATE: 1,
+        REGEN_RATE: 0.25,
 		SWEET_SPOT: 200,
         SWEET_SPOT_SIZE: 95,
         LOCK_IN_TIME: 2000,
@@ -171,12 +205,12 @@ const LEVELS = [
         TYPE: LEVEL_TYPES.FINISH,
         ENEMY: assetList[8], // Trophy
         WEAPON: assetList[8],
-        HEALTH: 10000000,
-        SHOT_SIZE: 1,
-        REGEN_RATE: 1,
-        SWEET_SPOT: 5,
+        HEALTH: 100,
+        SHOT_SIZE: 10,
+        REGEN_RATE: 0.2,
+        SWEET_SPOT: 100,
         SWEET_SPOT_SIZE: 5,
-        LOCK_IN_TIME: 500,
+        LOCK_IN_TIME: 500000,
         LEVEL: Win,
     },
 ];
