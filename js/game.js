@@ -19,6 +19,7 @@ const EVENTS = {
     ENEMY_DEAD: "Dead",
     NEXT_LEVEL: "NextLevel",
     GAME_COMPLETE: "GameComplete",
+    PLAY_SOUND: "PlaySound",
 }
 
 const NO_AR_VIDEO = "./images/testvid.mp4";
@@ -39,19 +40,73 @@ let assetList = [
     "net",
 ];
 
+
+class SoundPlayer {
+
+    constructor (assetList, camera) {
+
+
+        this.sound = {};
+
+        this.listener = new THREE.AudioListener();
+
+        camera.add(this.listener);
+
+        var player = this;
+
+        assetList.map(s=>{
+
+            var audioLoader = new THREE.AudioLoader();
+            audioLoader.load( `./sound/${s}.mp3`, function( buffer ) {
+                var sound = new THREE.Audio( player.listener );
+                sound.setBuffer( buffer );
+                sound.setLoop( false );
+                sound.setVolume( 0.8 );
+                player.sound[s] = sound;
+            });
+
+        });
+
+        window.addEventListener(EVENTS.PLAY_SOUND, this.play.bind(this))
+
+    }
+
+    play(e) {
+        const key = e.detail;
+        const sound = this.sound[key];
+
+       
+
+        //sound.stop();
+        if(sound.isPlaying) {
+            sound.stop();
+        }
+        sound.detune = Math.floor(((0.5-Math.random())*2)*300);
+
+        sound.play();
+
+    }
+
+}
+
+
+
+
 class Level {
     constructor (enemyMesh, weaponMesh, text, details) {
         this.dead = false;
         this.state = "started"
         this.root = new THREE.Group();
-        this.enemyMesh = enemyMesh;
-        this.weaponMesh = weaponMesh;
+        this.enemyMesh = enemyMesh.clone();
+        this.weaponMesh = weaponMesh.clone();
         this.enemyMesh.geometry = this.enemyMesh.geometry.clone().translate(0,0.5,0);
-        this.text = text;
+        this.text = text.clone();
         this.details = details;
         this.progressBar = new ProgressBar(details)
 
-        this.root.add(enemyMesh, text, this.progressBar.mesh);
+
+
+        this.root.add(this.enemyMesh, this.text, this.progressBar.mesh);
 
         this.end = this.end.bind(this);
 
@@ -72,10 +127,10 @@ class Level {
         // }
 
         if(this.state === "won") {
-            this.text.position.y+=0.06;
+            this.text.position.y+=0.05;
             this.text.rotateY(0.05);
             this.enemyMesh.rotateY(-0.1);
-            this.enemyMesh.position.y-=0.1;
+            this.enemyMesh.position.y-=0.08;
         }
 
     }
@@ -88,10 +143,11 @@ class Level {
             kickout(EVENTS.NEXT_LEVEL);
             this.dead = true;
             this.cleanUp();
-        }, 3000);
+        }, 2000);
     }
     cleanUp () {
         kickout(EVENTS.REMOVE, this.root);
+        this.root.parent.remove(this.root);
     }
 }
 
@@ -117,7 +173,7 @@ class Win extends Level {
     }
     start () { 
         kickout(EVENTS.START_LEVEL, this);
-        //this.progressBar.mesh.visible = false;
+        this.progressBar.mesh.visible = false;
     }
     update () {
 
@@ -326,7 +382,7 @@ class ARManager {
     {
 
         this.arToolkitSource = new THREEx.ArToolkitSource({
-            sourceType : AR_TYPES.VIDEO,
+            sourceType : AR_TYPES.WEBCAM,
             sourceUrl : NO_AR_VIDEO,
         });
     
@@ -361,12 +417,16 @@ class GameManager {
 
 
         window.addEventListener(EVENTS.START_GAME, this.startGame.bind(this));
+        window.addEventListener(EVENTS.START_LEVEL, ()=>{});
+        window.addEventListener(EVENTS.WIN_LEVEL, this.endLevel.bind(this));
         window.addEventListener(EVENTS.NEXT_LEVEL, this.nextLevel.bind(this))
 
         this.AR = new ARManager();
         this.hostUI = new StartUpUI();
         this.loop = null;
         this.assets = new AssetManager(assetList);
+
+        this.audio = new SoundPlayer(assetList, this.AR.camera);
 
         this.currentLevel = 0;
         this.level = null;
@@ -400,8 +460,14 @@ class GameManager {
         if(this.levels[level]) {
             this.currentLevel = level;
 
-            const firebutton = document.getElementById("firebutton")
+
+            const firebutton = document.getElementById("firebutton");
+            
             firebutton.src = `textures/${this.levels[level].WEAPON}.png`;
+
+
+            document.getElementById("UI").classList.remove("hide");
+            document.getElementById("UI").classList.add("show");
 
 
             const text = this.findModel(this.levels[level].ENEMY);
@@ -419,7 +485,10 @@ class GameManager {
         }
     }
 
-
+    endLevel ( level ) {
+        document.getElementById("UI").classList.remove("show");
+        document.getElementById("UI").classList.add("hide");
+    }
 
 
 }
@@ -542,7 +611,8 @@ class Bullet {
 		if (this.life < 0 || this.mesh.position.z < 0) {
 			this.dead = true;
 			this.scene.remove(this.mesh);
-			kickout(EVENTS.ENEMY_HIT, this.level)
+            kickout(EVENTS.ENEMY_HIT, this.level);
+            kickout(EVENTS.PLAY_SOUND, this.mesh.name);
 		} else {
 			this.velocity.add(GRAVITY);
 
@@ -568,6 +638,8 @@ class BulletController {
         this.shotRate = 0.2;
         this.bullets = [];
 
+        this.enable = false;
+
         this.scene = scene;
 
         this.bulletMesh = null;
@@ -591,11 +663,14 @@ class BulletController {
         })
 
         window.addEventListener(EVENTS.START_LEVEL, (e)=>{
+            this.enable = true;
             this.level = e.detail;
            this.scene = e.detail.root;
            this.setBulletMesh(e.detail.weaponMesh);
         })
-        
+        window.addEventListener(EVENTS.WIN_LEVEL, (e)=>{
+            this.enable = false;
+        })
     }
 
     setBulletMesh(mesh) {
@@ -604,7 +679,7 @@ class BulletController {
     }
 
     update() {
-        if(this.touch) {
+        if(this.touch && this.enable) {
             this.shoot( this.scene );
         }
         this.bullets.map(b=>b.update());
@@ -708,7 +783,7 @@ class ProgressBar {
     }
 
     done () {
-        this.mesh.position.y+=0.08;
+        this.mesh.position.y -= 0.03;
     }
 
     generateGeometry(progress = 1, size = 0.5, startAngle = -90, resolution = 64) {
