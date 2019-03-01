@@ -1,5 +1,5 @@
-const MARKER_PATTERN_DATA = "data/emojifight-bw.patt";
-const CAMERA_PATTERN_DATA = "data/camera_para.dat";
+const MARKER_PATTERN_DATA = "./data/pattern-marker.patt";
+const CAMERA_PATTERN_DATA = "./data/camera_para.dat";
 
 const AR_TYPES = {
     WEBCAM: "webcam",
