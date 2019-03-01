@@ -517,7 +517,7 @@ class AssetManager {
 
     }
 
-    loadModels (model = './models/lion.glb') {
+    loadModels (model = './models/Lion.glb') {
         return new Promise((resolve, reject)=>{
 
             new THREE.GLTFLoader().load(model, (gltf)=>{
